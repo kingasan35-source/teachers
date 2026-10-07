@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Neon Escape - 50 Levels Chaser AI Edition</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      user-select: none;
+    }
+
+    body {
+      background: radial-gradient(circle at center, #11131e 0%, #050608 100%);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    #game-container {
+      position: relative;
+      width: 900px;
+      height: 650px;
+      background: #0a0b10;
+      border: 3px solid #00f0ff;
+      border-radius: 16px;
+      box-shadow: 0 0 35px rgba(0, 240, 255, 0.25);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(5, 6, 8, 0.94);
+      backdrop-filter: blur(8px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      padding: 20px;
+    }
+
+    .hidden { display: none !important; }
+
+    h1 {
+      font-size: 44px;
+      color: #00f0ff;
+      text-shadow: 0 0 20px #00f0ff;
+      margin-bottom: 20px;
+      letter-spacing: 2px;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+      width: 80%;
+      max-width: 400px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+      color: #a0a5c0;
+      font-weight: 600;
+    }
+
+    select, input[type="text"], input[type="number"] {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 2px solid #00f0ff33;
+      background: #121420;
+      color: #fff;
+      font-size: 16px;
+      outline: none;
+    }
+
+    .btn {
+      padding: 12px 32px;
+      font-size: 18px;
+      font-weight: bold;
+      background: linear-gradient(135deg, #00f0ff 0%, #7000ff 100%);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+      margin-top: 10px;
+      transition: all 0.2s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 25px rgba(0, 240, 255, 0.7);
+    }
+
+    #hud {
+      height: 50px;
+      background: rgba(10, 11, 16, 0.9);
+      border-bottom: 2px solid #00f0ff33;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 20px;
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .player-tag { display: flex; align-items: center; gap: 6px; }
+    .p1-color { color: #00f0ff; text-shadow: 0 0 8px #00f0ff; }
+    .p2-color { color: #ff007f; text-shadow: 0 0 8px #ff007f; }
+    .p3-color { color: #ffea00; text-shadow: 0 0 8px #ffea00; }
+
+    canvas { flex: 1; }
+  </style>
+</head>
+<body>
+
+  <div id="game-container">
+    <!-- Main Menu -->
+    <div id="menu-screen" class="screen">
+      <h1>NEON ESCAPE (50 LEVELS)</h1>
+      
+      <div class="form-group">
+        <label>Number of Players:</label>
+        <select id="player-count" onchange="updatePlayerInputs()">
+          <option value="1">1 Player</option>
+          <option value="2">2 Players</option>
+          <option value="3">3 Players</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Difficulty:</label>
+        <select id="difficulty">
+          <option value="easy">Easy (Slower Chaser AI, 3 Lives)</option>
+          <option value="hard" selected>Hard (Fast Chaser AI, 2 Lives)</option>
+          <option value="impossible">Impossible (Aggressive Smart AI, 1 Life)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Start Level (1 to 50):</label>
+        <input type="number" id="start-level" value="1" min="1" max="50">
+      </div>
+
+      <div class="form-group" id="p1-input">
+        <label class="p1-color">Player 1 Name (WASD):</label>
+        <input type="text" id="p1-name" value="Player 1">
+      </div>
+
+      <div class="form-group hidden" id="p2-input">
+        <label class="p2-color">Player 2 Name (Arrows):</label>
+        <input type="text" id="p2-name" value="Player 2">
+      </div>
+
+      <div class="form-group hidden" id="p3-input">
+        <label class="p3-color">Player 3 Name (IJKL):</label>
+        <input type="text" id="p3-name" value="Player 3">
+      </div>
+
+      <button class="btn" onclick="startGame()">START GAME</button>
+    </div>
+
+    <!-- Screen Overlay -->
+    <div id="end-screen" class="screen hidden">
+      <h1 id="end-title">GAME OVER</h1>
+      <p id="end-msg" style="margin-bottom: 20px; font-size: 18px; color: #a0a5c0;"></p>
+      <div style="display: flex; gap: 15px;">
+        <button class="btn" onclick="showMenu()">MAIN MENU</button>
+        <button class="btn" id="next-btn" onclick="nextLevel()" style="display:none;">NEXT LEVEL</button>
+      </div>
+    </div>
+
+    <!-- HUD Bar -->
+    <div id="hud">
+      <div style="display: flex; gap: 15px;" id="player-hud"></div>
+      <div id="level-hud" style="color: #00f0ff;">LEVEL 1 / 50</div>
+      <div id="key-hud" style="color: #ffea00;">KEY: NEEDED</div>
+    </div>
+
+    <!-- Game Canvas -->
+    <canvas id="gameCanvas" width="900" height="600"></canvas>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playSound(freq, duration) {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + duration);
+    }
+
+    let gameConfig = { playerCount: 1, difficulty: 'hard', currentLevel: 1 };
+    let keys = {};
+    window.addEventListener('keydown', e => keys[e.key] = true);
+    window.addEventListener('keyup', e => keys[e.key] = false);
+
+    function updatePlayerInputs() {
+      const count = parseInt(document.getElementById('player-count').value);
+      document.getElementById('p2-input').classList.toggle('hidden', count < 2);
+      document.getElementById('p3-input').classList.toggle('hidden', count < 3);
+    }
+
+    class Player {
+      constructor(id, name, color, x, y, controls) {
+        this.id = id;
+        this.name = name;
+        this.color = color;
+        this.x = x;
+        this.y = y;
+        this.size = 20;
+        this.speed = 4.2;
+        this.controls = controls;
+        this.lives = gameConfig.difficulty === 'easy' ? 3 : (gameConfig.difficulty === 'hard' ? 2 : 1);
+        this.alive = true;
+        this.escaped = false;
+      }
+
+      update(walls) {
+        if (!this.alive || this.escaped) return;
+
+        let dx = 0, dy = 0;
+        if (keys[this.controls.up]) dy -= this.speed;
+        if (keys[this.controls.down]) dy += this.speed;
+        if (keys[this.controls.left]) dx -= this.speed;
+        if (keys[this.controls.right]) dx += this.speed;
+
+        this.x += dx;
+        for (let w of walls) {
+          if (this.checkCollision(this, w)) {
+            if (dx > 0) this.x = w.x - this.size;
+            if (dx < 0) this.x = w.x + w.w;
+          }
+        }
+
+        this.y += dy;
+        for (let w of walls) {
+          if (this.checkCollision(this, w)) {
+            if (dy > 0) this.y = w.y - this.size;
+            if (dy < 0) this.y = w.y + w.h;
+          }
+        }
+      }
+
+      checkCollision(p, w) {
+        return p.x < w.x + w.w && p.x + p.size > w.x &&
+               p.y < w.y + w.h && p.y + p.size > w.y;
+      }
+
+      draw() {
+        if (!this.alive || this.escaped) return;
+        ctx.save();
+        ctx.shadowColor = this.color;
+        ctx.shadowBlur = 12;
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.roundRect(this.x, this.y, this.size, this.size, 5);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // Smart Chaser AI Guard
+    class ChasingGuard {
+      constructor(x, y, speed) {
+        this.x = x;
+        this.y = y;
+        this.size = 22;
+        this.baseSpeed = speed;
+      }
+
+      update(players, walls) {
+        // Find nearest living active player
+        let target = null;
+        let minDist = Infinity;
+
+        players.forEach(p => {
+          if (p.alive && !p.escaped) {
+            let dist = Math.hypot(p.x - this.x, p.y - this.y);
+            if (dist < minDist) {
+              minDist = dist;
+              target = p;
+            }
+          }
+        });
+
+        if (target) {
+          let angle = Math.atan2(target.y - this.y, target.x - this.x);
+          let dx = Math.cos(angle) * this.baseSpeed;
+          let dy = Math.sin(angle) * this.baseSpeed;
+
+          // Try moving horizontally
+          this.x += dx;
+          for (let w of walls) {
+            if (this.checkCollision(w)) {
+              this.x -= dx; // Revert horizontal if blocked by wall
+              break;
+            }
+          }
+
+          // Try moving vertically
+          this.y += dy;
+          for (let w of walls) {
+            if (this.checkCollision(w)) {
+              this.y -= dy; // Revert vertical if blocked by wall
+              break;
+            }
+          }
+        }
+      }
+
+      checkCollision(w) {
+        return this.x < w.x + w.w && this.x + this.size > w.x &&
+               this.y < w.y + w.h && this.y + this.size > w.y;
+      }
+
+      draw() {
+        ctx.save();
+        ctx.shadowColor = "#ff0055";
+        ctx.shadowBlur = 15;
+        ctx.fillStyle = "#ff0055";
+        ctx.beginPath();
+        ctx.roundRect(this.x, this.y, this.size, this.size, 5);
+        ctx.fill();
+        
+        // Eye detail
+        ctx.fillStyle = "#000";
+        ctx.fillRect(this.x + 5, this.y + 5, this.size - 10, this.size - 10);
+        ctx.restore();
+      }
+    }
+
+    let players = [], guards = [], walls = [];
+    let keyItem = { x: 0, y: 0, size: 20, collected: false };
+    let exitDoor = { x: 835, y: 500, w: 45, h: 70 };
+    let gameLoopId;
+
+    // Generate 50 Procedural Levels
+    function generateLevel(lvl) {
+      walls = [
+        { x: 0, y: 0, w: 900, h: 15 }, { x: 0, y: 585, w: 900, h: 15 },
+        { x: 0, y: 0, w: 15, h: 600 }, { x: 885, y: 0, w: 15, h: 600 }
+      ];
+
+      // Procedural Maze Walls
+      let colCount = 2 + Math.floor((lvl % 5));
+      let wallWidth = 20;
+      let spacing = (800 - (colCount * wallWidth)) / (colCount + 1);
+
+      for (let i = 0; i < colCount; i++) {
+        let x = 120 + i * (spacing + wallWidth);
+        let gapY = (i % 2 === 0) ? 150 + (lvl * 10) % 200 : 15;
+        let gapH = 400;
+
+        walls.push({ x: x, y: gapY, w: wallWidth, h: gapH });
+      }
+
+      // Dynamic Guard Scaling according to Level & Difficulty
+      let difficultyMultiplier = gameConfig.difficulty === 'easy' ? 0.7 : (gameConfig.difficulty === 'hard' ? 1.0 : 1.4);
+      let guardSpeed = (1.8 + (lvl * 0.08)) * difficultyMultiplier;
+      let guardCount = Math.min(1 + Math.floor(lvl / 4), 6);
+
+      guards = [];
+      for (let g = 0; g < guardCount; g++) {
+        let gx = 300 + (g * 100) % 500;
+        let gy = 100 + (g * 80) % 400;
+        guards.push(new ChasingGuard(gx, gy, guardSpeed));
+      }
+
+      keyItem.x = 800 - (lvl * 12) % 600;
+      keyItem.y = 60 + (lvl * 25) % 450;
+      keyItem.collected = false;
+    }
+
+    function initPlayers() {
+      players = [];
+      const count = gameConfig.playerCount;
+      const p1 = document.getElementById('p1-name').value || 'Player 1';
+      const p2 = document.getElementById('p2-name').value || 'Player 2';
+      const p3 = document.getElementById('p3-name').value || 'Player 3';
+
+      players.push(new Player(1, p1, '#00f0ff', 40, 40, { up: 'w', down: 's', left: 'a', right: 'd' }));
+      if (count >= 2) players.push(new Player(2, p2, '#ff007f', 40, 80, { up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight' }));
+      if (count >= 3) players.push(new Player(3, p3, '#ffea00', 40, 120, { up: 'i', down: 'k', left: 'j', right: 'l' }));
+    }
+
+    function startGame() {
+      gameConfig.playerCount = parseInt(document.getElementById('player-count').value);
+      gameConfig.difficulty = document.getElementById('difficulty').value;
+      let startLvl = parseInt(document.getElementById('start-level').value) || 1;
+      gameConfig.currentLevel = Math.max(1, Math.min(50, startLvl));
+
+      document.getElementById('menu-screen').classList.add('hidden');
+      document.getElementById('end-screen').classList.add('hidden');
+
+      initPlayers();
+      generateLevel(gameConfig.currentLevel);
+      if (gameLoopId) cancelAnimationFrame(gameLoopId);
+      gameLoop();
+    }
+
+    function gameLoop() {
+      ctx.fillStyle = "#0a0b10";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Floor Grid
+      ctx.strokeStyle = "rgba(0, 240, 255, 0.03)";
+      for (let x = 0; x < canvas.width; x += 30) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+      }
+
+      // Walls
+      ctx.fillStyle = "#1b1d2a";
+      walls.forEach(w => {
+        ctx.fillRect(w.x, w.y, w.w, w.h);
+        ctx.strokeStyle = "#00f0ff44";
+        ctx.strokeRect(w.x, w.y, w.w, w.h);
+      });
+
+      // Key
+      if (!keyItem.collected) {
+        ctx.save();
+        ctx.shadowColor = "#ffea00";
+        ctx.shadowBlur = 12;
+        ctx.fillStyle = "#ffea00";
+        ctx.fillRect(keyItem.x, keyItem.y, keyItem.size, keyItem.size);
+        ctx.restore();
+      }
+
+      // Exit Door
+      ctx.save();
+      ctx.shadowColor = keyItem.collected ? "#00ff88" : "#222";
+      ctx.shadowBlur = keyItem.collected ? 15 : 0;
+      ctx.fillStyle = keyItem.collected ? "#00ff88" : "#222533";
+      ctx.fillRect(exitDoor.x, exitDoor.y, exitDoor.w, exitDoor.h);
+      ctx.restore();
+
+      // Guards AI Update
+      guards.forEach(g => {
+        g.update(players, walls);
+        g.draw();
+      });
+
+      // Players Update
+      let aliveCount = 0;
+      players.forEach(p => {
+        if (p.alive && !p.escaped) {
+          p.update(walls);
+          p.draw();
+          aliveCount++;
+
+          // Check Guard Attack
+          guards.forEach(g => {
+            if (p.x < g.x + g.size && p.x + p.size > g.x &&
+                p.y < g.y + g.size && p.y + p.size > g.y) {
+              p.lives--;
+              playSound(130, 0.2);
+              if (p.lives <= 0) p.alive = false;
+              else { p.x = 40; p.y = 40 * p.id; }
+            }
+          });
+
+          // Key Pickup
+          if (!keyItem.collected && p.checkCollision(p, { x: keyItem.x, y: keyItem.y, w: keyItem.size, h: keyItem.size })) {
+            keyItem.collected = true;
+            playSound(600, 0.15);
+          }
+
+          // Door Escape
+          if (keyItem.collected && p.checkCollision(p, { x: exitDoor.x, y: exitDoor.y, w: exitDoor.w, h: exitDoor.h })) {
+            p.escaped = true;
+            playSound(850, 0.3);
+            handleWin(p);
+          }
+        }
+      });
+
+      updateHUD();
+
+      if (aliveCount === 0 && !players.some(p => p.escaped)) {
+        handleGameOver();
+        return;
+      }
+
+      gameLoopId = requestAnimationFrame(gameLoop);
+    }
+
+    function updateHUD() {
+      const hud = document.getElementById('player-hud');
+      hud.innerHTML = '';
+      players.forEach(p => {
+        const tag = document.createElement('div');
+        tag.className = `player-tag p${p.id}-color`;
+        tag.innerText = `${p.name}: ${p.escaped ? 'ESCAPED' : (p.alive ? '❤️'.repeat(p.lives) : 'DEAD')}`;
+        hud.appendChild(tag);
+      });
+
+      document.getElementById('level-hud').innerText = `LEVEL ${gameConfig.currentLevel} / 50`;
+      document.getElementById('key-hud').innerText = keyItem.collected ? 'KEY: UNLOCKED' : 'KEY: NEEDED';
+      document.getElementById('key-hud').style.color = keyItem.collected ? '#00ff88' : '#ffea00';
+    }
+
+    function handleGameOver() {
+      document.getElementById('end-screen').classList.remove('hidden');
+      document.getElementById('end-title').innerText = "GAME OVER";
+      document.getElementById('end-title').style.color = "#ff0055";
+      document.getElementById('end-msg').innerText = "Guards caught all players!";
+      document.getElementById('next-btn').style.display = "none";
+    }
+
+    function handleWin(winner) {
+      cancelAnimationFrame(gameLoopId);
+      document.getElementById('end-screen').classList.remove('hidden');
+      document.getElementById('end-title').innerText = "LEVEL CLEARED!";
+      document.getElementById('end-title').style.color = "#00ff88";
+      document.getElementById('end-msg').innerText = `${winner.name} successfully escaped Level ${gameConfig.currentLevel}!`;
+
+      if (gameConfig.currentLevel < 50) {
+        document.getElementById('next-btn').style.display = "inline-block";
+      } else {
+        document.getElementById('next-btn').style.display = "none";
+        document.getElementById('end-msg').innerText += " VICTORY! You cleared all 50 levels!";
+      }
+    }
+
+    function nextLevel() {
+      gameConfig.currentLevel++;
+      document.getElementById('end-screen').classList.add('hidden');
+      players.forEach(p => {
+        p.alive = true;
+        p.escaped = false;
+        p.x = 40;
+        p.y = 40 * p.id;
+      });
+      generateLevel(gameConfig.currentLevel);
+      gameLoop();
+    }
+
+    function showMenu() {
+      document.getElementById('end-screen').classList.add('hidden');
+      document.getElementById('menu-screen').classList.remove('hidden');
+    }
+  </script>
+</body>
+</html>
